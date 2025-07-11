@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plyr Video Player with Telegram Popups</title>
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      height: 100%; width: 100%; margin: 0;
+      background: #000; overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .video-wrapper {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+    }
+    .video-wrapper video {
+      width: 100%; height: 100%; object-fit: contain;
+      background: #000;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(150%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .telegram-popup {
+      position: fixed;
+      display: flex; align-items: center; gap: 0.75rem;
+      background: linear-gradient(to right, #2AABEE, #199cd8);
+      color: white; padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 30;
+    }
+
+    .telegram-popup img { width: 2rem; height: 2rem; filter: drop-shadow(1px 1px 2px #000); }
+    .telegram-popup .title { font-weight: 700; }
+    .telegram-popup .subtitle { font-size: 0.75rem; margin-top: 0.125rem; }
+    .telegram-popup .join-btn {
+      font-weight: 600; padding: 0.25rem 0.75rem;
+      background: rgba(255,255,255,0.15); border-radius: 9999px;
+      transition: background 0.2s;
+    }
+    .telegram-popup .join-btn:hover { background: rgba(255,255,255,0.3); }
+    .telegram-popup .close-btn {
+      background: transparent; border: none; color: white;
+      font-size: 1.25rem; cursor: pointer;
+    }
+
+    #tgPopupBR {
+      bottom: 1.25rem; right: 1.25rem;
+      animation: slideUp 0.8s ease-out forwards 3s;
+      opacity: 0;
+    }
+
+    /* === Overlay Style Popup (from Render site) === */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 50;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    .popup-box {
+      background: #1c1c1c;
+      color: white;
+      padding: 25px 30px;
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(255, 102, 0, 0.4);
+      animation: slideUp 0.5s ease forwards;
+      max-width: 320px;
+    }
+
+    .popup-box h2 {
+      margin-top: 0;
+      color: #ffa500;
+      font-size: 22px;
+    }
+
+    .popup-box p {
+      font-size: 14px;
+      margin: 10px 0 20px;
+      color: #ddd;
+    }
+
+    .popup-box button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+
+    .join-btn-orange {
+      background: #ffa500;
+      color: black;
+    }
+
+    .join-btn-orange:hover {
+      background: #ff8c00;
+    }
+
+    .close-btn-dark {
+      background: #333;
+      color: white;
+    }
+
+    .close-btn-dark:hover {
+      background: #444;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0 }
+      to { opacity: 1 }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="video-wrapper">
+    <video id="player" playsinline controls></video>
+  </div>
+
+  <!-- Bottom Right Telegram Popup -->
+  <div class="telegram-popup" id="tgPopupBR">
+    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/telegram.svg" alt="Telegram logo" />
+    <div>
+      <p class="title">Join us on Telegram</p>
+      <p class="subtitle">@one8chirag</p>
+    </div>
+    <a class="join-btn" href="https://t.me/+199H69Pqbd82MmM9" target="_blank">Join ➜</a>
+    <button class="close-btn">&times;</button>
+  </div>
+
+  <!-- Cloned Center Overlay Popup (like Render example) -->
+  <div class="overlay" id="telegramPopup">
+    <div class="popup-box">
+      <h2>Support Us!</h2>
+      <p>Join our Telegram channel <strong>@one8chirag</strong> for instant updates, highlights, and exclusive links.</p>
+      <button class="join-btn-orange" onclick="joinTelegram()">Join Now</button>
+      <button class="close-btn-dark" onclick="closePopup()">Already Joined</button>
+    </div>
+  </div>
+
+  <!-- Video Player Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script>
+    (function () {
+      const source = "https://1rinij81ehes2uswech6drot7durixl2r0.rtgjmfvikmgtgrvkpbg.shop/j5ru6icHofROsespidec64w0s7lgo8ot/1080p.m3u8";
+      const video = document.getElementById("player");
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(source);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = source;
+      }
+
+      const player = new Plyr(video, {
+        fullscreen: { enabled: true, fallback: true, iosNative: true },
+      });
+
+      const ensureFs = () => {
+        if (!player.fullscreen.active) player.fullscreen.enter();
+      };
+      player.on('ready', () => setTimeout(ensureFs, 600));
+      player.on('play', ensureFs);
+
+      // Close bottom right
+      document.getElementById('tgPopupBR').querySelector('.close-btn').addEventListener('click', () => {
+        document.getElementById('tgPopupBR').remove();
+      });
+    })();
+
+    function closePopup() {
+      document.getElementById("telegramPopup").style.display = "none";
+    }
+
+    function joinTelegram() {
+      window.open("https://t.me/+199H69Pqbd82MmM9", "_blank");
+      closePopup();
+    }
+  </script>
+
+</body>
+</html>
